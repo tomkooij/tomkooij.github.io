@@ -9,6 +9,13 @@
 		font-family: Helvetica, Arial, sans-serif;
 		font-size: 100%;
     }
+		table {
+      border: 1px solid black;
+	  }
+		th, td {
+      border: 1px solid black;
+		  padding: 5px;
+		}
     /* schaduw rand om werkblad zodat afmetinging zichtbaar is
        handig voor debuggen */
     #werkBlad {
@@ -20,35 +27,18 @@
 	    width: 450px;
 	    height: 200px;
 	}
-
-
     </style>
     <script src="jquery-1.11.3.js"></script>
 	<script src="jquery.flot.js"></script>
 </head>
+
+
 <body>
 	<div id="werkBlad"> <!-- CSS zorg voor met werkvlak met schaduw -->
         <h2>Modelleertaal</h2>
         <div>
 			<input type="file" id="fileinput" />
-			<script type="text/javascript">
-			  function readSingleFile(evt) {
-			    var f = evt.target.files[0];
 
-			    if (f) {
-			      var r = new FileReader();
-			      r.onload = function(e) {
-				      var data = e.target.result;
-					model.parseBogusXMLString(data);
-					$("#modelregels").val(model.modelregels);
-					$("#startwaarden").val(model.startwaarden);
-			      }
-			      r.readAsText(f);
-			    }
-			  }
-
-			  document.getElementById('fileinput').addEventListener('change', readSingleFile, false);
-			</script>
 		</div>
 
 		<div>
@@ -58,15 +48,18 @@
             $(document).ready(function() {
 				// read model
 				$.ajax({
-					url : "modellen/model.xml",
+					url : "modellen/model 5.xml",
 					dataType: "text",
 					success : function (data) {
 						model = new evaluator_js.Model();
 						model.parseBogusXMLString(data);
 						$("#modelregels").val(model.modelregels);
 						$("#startwaarden").val(model.startwaarden);
+						$("#x_var").val("");
+						$("#y_var").val("");
 						}
 					});
+
 				// read model after button press
 				$("#open").click(function() {
                     $.ajax({
@@ -77,6 +70,8 @@
 							model.parseBogusXMLString(data);
 							$("#modelregels").val(model.modelregels);
 							$("#startwaarden").val(model.startwaarden);
+							$("#x_var").val("");
+							$("#y_var").val("");
                             }
                         });
                 });
@@ -85,118 +80,235 @@
         </div>
 
 		<div>
-			Number of iterations = <input type="text" id="NBox" value="1000" size=5>
+			<textarea id="modelregels"  rows=15 cols=40> Modelregels </textarea>
+			<textarea id="startwaarden" rows=15 cols=25> Startwaarden </textarea>
 			<p>
 			<input id="run" type="button" value= "RUN!">
-			<script>
-			$(document).ready(function() {
-				$("#run").click(function() {
-					console.log('RUN! clicked.');
-
-					// read model from textarea
-					model = new evaluator_js.Model();
-					model.modelregels = $("#modelregels").val();
-					model.startwaarden = $("#startwaarden").val();
-					console.log('model = ', model);
-
-					// read N from input field, set Nresults to 100 or N
-					var N = Number($('#NBox').val());
-					var Nresults = Math.min(N, 100);
-					console.log(N, Nresults);
-					if (N > 1e6) {
-						alert('N too big!');
-						throw new Error('N too big!');
-					}
-
-					//run!
-	                var output_str = "Run started..."
-					$("#status").html(output_str);
-					console.log(output_str);
-
-                    var evaluator = new evaluator_js.ModelregelsEvaluator(model, true);
-					var results = evaluator.run(N, Nresults);
-			
-                    var output_str = "Run finished at iteration: " + results.length
-					$("#status").html(output_str);
-					console.log(output_str);
-
-					// clean up results
-					var res = new evaluator_js.Results(evaluator.namespace);
-					res.getAllandCleanUp(results, Nresults);
-
-					// make table
-					var dataset = res.rows;
-
-					var firstrow = $('<tr>')
-					var table = $('<table>').addClass('table');;
-
-					firstrow.append($('<th>').text('#'));
-
-            		var allVars = res.namespace.listAllVars();
-					console.log(allVars, allVars.length);
-					for (var k = 0; k < allVars.length; k++) {
-						firstrow.append($('<th>').text(allVars[k]));
-					}
-
-            		table.append(firstrow);
-
-					for (var i = 0; i < dataset.length; i++) {
-		                var row = $('<tr>');
-		                row.append($('<td>').text(i + 1));
-		                for (var j = 0; j < dataset[i].length; j++) {
-		                    row.append($('<td>').text(dataset[i][j]));}
-		                table.append(row);
-					}
-		        	$("#output").html(table);
-
-					// graph!
-					var scatter_plot = [];
-					// create data series. This should be a method of Results()
-					for (var i=0; i < Nresults; i++) {
-						// plot the first two variables (should be (t,x))
-						scatter_plot.push([parseFloat(res.rows[i][0].replace(',', '.')), parseFloat(res.rows[i][1].replace(',', '.'))]);
-					}
-					$("#graph").empty(); // nuke existing graph
-					$.plot($("#graph"), [scatter_plot],{
-							        series: {
-							            points: {
-							                radius: 1,
-							                show: true,
-							                fill: true,
-							                fillColor: "#058DC7"
-							            },
-							            color: "#058DC7"
-							        }});
-
-				});
-			});
-		 	</script>
+			Aantal iteraties = <input type="text" id="NBox" value="100" size=5>
+			<span id="output"></span>
 		</div>
 
 		<p>
-		<textarea id="modelregels"  rows=15 cols=40> Modelregels </textarea>
-		<textarea id="startwaarden" rows=15 cols=25> Startwaarden </textarea>
+
+		<div id="graph">Graph goes here!</div>
+		<p>
+		verticaal: <input type="text" id="y_var" size=3>
+		horizontaal: <input type="text" id="x_var" size=3>
+		<input id="plot" type="button" value= "Plot!">
+		<p>Locatie: <span id="hoverdata"></span><span id="clickdata"></span></p>
 	</div>
 
 	<div id="werkBlad">
-		<pre id="status">Hi, I am a statusline! my id is #status !</pre>
+		<pre id="status">Status: Druk op RUN!</pre>
 	</div>
 
 	<div id="werkBlad">
-		<p id="graph">
-		Graph goes here!
-		</p>
+		<pre id="datatable">There should be output here...</pre>
 	</div>
 
-	<div id="werkBlad">
-		<pre id="output">There should be output here...</pre>
-	</div>
+
 
 	<!-- script/modules created with:
 	     browserify SCRIPT.js -d -s SCRIPT_js -o /dist/SCRIPT_browserfied.js
 		 access functions using SCRIPT_js object
 	-->
 	<script src="dist/evaluator.browser.js"></script>
+
+	<script type="text/javascript">
+
+		//  global datasets
+		var results = [];			// array of results
+		var allVars = [];			// array of names of vars in results array
+
+		var previous_plot = [];		// dataset of previous plot
+
+		function readSingleFile(evt) {
+			var f = evt.target.files[0];
+
+			if (f) {
+				var r = new FileReader();
+				r.onload = function(e) {
+					var data = e.target.result;
+			model.parseBogusXMLString(data);
+			$("#modelregels").val(model.modelregels);
+			$("#startwaarden").val(model.startwaarden);
+				}
+				r.readAsText(f);
+			}
+		}
+
+		document.getElementById('fileinput').addEventListener('change', readSingleFile, false);
+
+	$(document).ready(function() {
+
+			$("#run").click(function() {
+				console.log('RUN! clicked.');
+
+				// read model from textarea
+				model = new evaluator_js.Model();
+				model.modelregels = $("#modelregels").val();
+				model.startwaarden = $("#startwaarden").val();
+				console.log('model = ', model);
+
+				// read N from input field
+				var N = Number($('#NBox').val());
+
+				if (N > 1e6) {
+					alert('N too big!');
+					throw new Error('N too big!');
+				}
+
+				//run!
+				var output_str = "Run started..."
+				$("#output").html(output_str);
+				console.log(output_str);
+				try {
+					var evaluator = new evaluator_js.ModelregelsEvaluator(model, true);
+			 	} catch(err) {
+					$("#status").html(err.message);
+					alert("Model niet in orde: \n"+err.message);
+			 	}
+				results = evaluator.run(N);
+				var output_str = "Klaar na iteratie: " + results.length
+				$("#output").html(output_str);
+				$("#status").html("Status: RUN OK.")
+				console.log(output_str);
+
+				// make table, plot
+				allVars = evaluator.namespace.listAllVars();
+				console.log(allVars, allVars.length);
+				print_table("#datatable", results, allVars)
+				do_plot("#graph", results, allVars);
+
+			}); // run()
+
+			$("#plot").click(function() {
+				do_plot("#graph", results, allVars);
+				$("#status").html("Status: Plot OK.")
+			});
+
+			function do_plot(placeholder, results, allVars) {
+					var scatter_plot = [];
+
+					// get column indices (in results array) of variables to plot
+					xvar_colidx = get_column_index($('#x_var').val(), allVars, 0);
+					yvar_colidx = get_column_index($('#y_var').val(), allVars, 1);
+
+					// set column varnames in input fields
+					$('#x_var').val(allVars[xvar_colidx])
+					$('#y_var').val(allVars[yvar_colidx])
+
+					Nresults = Math.min(results.length, 100);
+					results = reduce_rows(results, Nresults);
+					console.log(results.length);
+
+					for (var i=0; i < results.length; i++) {
+							scatter_plot.push([results[i][xvar_colidx], results[i][yvar_colidx]]);
+					}
+					$(placeholder).empty(); // verwijder text enzo
+					plot_graph(placeholder, scatter_plot);
+					previous_plot = scatter_plot;
+			}; // do_plot
+
+			function plot_graph(placeholder, dataset) {
+				$.plot($(placeholder), [
+							{data: previous_plot, color: '#d3d3d3'},
+							{data: dataset, color: 'blue'}],
+						  {
+										series: {
+											  lines: {
+														show: true
+												},
+												points: {
+														radius: 1,
+														show: true,
+														fill: true,
+												},
+										},
+										grid: {
+											hoverable: true,
+											clickable: true
+										},
+				}); // $.plot()
+
+				$(placeholder).bind("plothover", function (event, pos, item) {
+					var str = "(" + pos.x.toFixed(2) + ", " + pos.y.toFixed(2) + ")";
+					$("#hoverdata").text(str);
+				}); // $.bind("plothover")
+
+				$(placeholder).bind("plotclick", function (event, pos, item) {
+					if (item) {
+						var str = " - Click: (" + pos.x.toFixed(2) + ", " +
+						   pos.y.toFixed(2) + ")";
+						$("#clickdata").text(str);
+					}
+				}); // $bind.("plotclick")
+
+			} // plot_graph()
+
+
+			function print_table(placeholder, dataset, varnames) {
+
+				var firstrow = $('<tr>')
+				var table = $('<table>').addClass('table');;
+				firstrow.append($('<th>').text('#'));
+
+				for (var k = 0; k < varnames.length; k++) {
+					firstrow.append($('<th>').text(varnames[k]));
+				}
+				table.append(firstrow);
+
+				// reduce to max 500 rows to prevent browser lockup
+				Nresults = Math.min(dataset.length, 500);
+				dataset = reduce_rows(dataset, Nresults);
+
+				for (var i = 0; i < dataset.length; i++) {
+									var row = $('<tr>');
+									row.append($('<td>').text(i));
+									for (var j = 0; j < dataset[i].length; j++) {
+											row.append($('<td>').text(dataset[i][j].toFixed(3)));}
+									table.append(row);
+				}
+				$(placeholder).html(table);
+			}
+
+			function get_column_index(field_value, varslist, default_value) {
+				if (field_value) {
+					console.log("DEBUG: ")
+					console.log(varslist);
+					var idx = varslist.findIndex(x =>  x == field_value);
+					if (idx == -1) {
+						alert("Variable voor grafiekas niet gevonden: "+field_value);
+						return default_value;
+					} else return idx;
+				} else return default_value;
+			}
+
+			function reduce_rows(rows, Nresults) {
+					// reduce resultsObject (large array) to length == Nresults
+
+					var length = rows.length;
+			    var rowinc = Math.floor(length / Nresults);
+
+			    function select_rows(value, index) {
+			        // select first row, last row and rows in between. Keep Nrows+1 rows.
+			        if (index === 0 || index % rowinc === 0 || index == length-1) {
+			            return true;
+			        } else {
+			            return false;
+			        }
+			    }
+
+			    if (length > Nresults) {
+			        return rows.filter(select_rows);
+			    }
+			    return rows;
+			}
+	});
+
+
+	</script>
+
 
 </body>
 </html>
