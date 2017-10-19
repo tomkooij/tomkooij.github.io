@@ -38,8 +38,8 @@
 
 <body>
 	<div id="werkBlad"> <!-- CSS zorg voor met werkvlak met schaduw -->
-        <h2>Modelleertaal</h2>
-        <div>
+        <h2><a href="https://github.com/tomkooij/modelleertaal">Modelleertaal</a></h2>
+    <div>
 			<input type="file" id="fileinput">
 			<input id="download" type="button" value= "Download model.xml">
 		</div>
@@ -95,22 +95,10 @@
 
 		var previous_plot = [];		// dataset of previous plot
 
-		function readSingleFile(evt) {
-			var f = evt.target.files[0];
 
-			if (f) {
-				var r = new FileReader();
-				r.onload = function(e) {
-					var data = e.target.result;
-			model.parseBogusXMLString(data);
-			$("#modelregels").val(model.modelregels);
-			$("#startwaarden").val(model.startwaarden);
-				}
-				r.readAsText(f);
-			}
-		}
-
-		document.getElementById('fileinput').addEventListener('change', readSingleFile, false);
+ //
+ // Model runnen
+ //
 
 	$(document).ready(function() {
 
@@ -171,6 +159,9 @@
 				$("#status").html("Status: Plot OK.")
 			});
 
+//
+// Plotten
+//
 			function do_plot(placeholder, results, allVars) {
 					var scatter_plot = [];
 
@@ -244,11 +235,20 @@
 
 			} // plot_graph()
 
+//
+// Table
+//
+			function print_table(placeholder, dataset, varnames, limit) {
+				// truncated row from: jquery.jsparc.js
+				// http://github.com/HiSPARC/jSPARC
 
-			function print_table(placeholder, dataset, varnames) {
+				limit = (limit) ? limit : 20;
+				limit = Math.min(dataset.length, limit);
+
+				console.log("DEBUG print_table " + limit);
 
 				var firstrow = $('<tr>')
-				var table = $('<table>').addClass('table');;
+				var table = $('<table>').addClass('table');
 				firstrow.append($('<th>').text('#'));
 
 				for (var k = 0; k < varnames.length; k++) {
@@ -256,20 +256,31 @@
 				}
 				table.append(firstrow);
 
-				// reduce to max 500 rows to prevent browser lockup
-				Nresults = Math.min(dataset.length, 500);
-				dataset = reduce_rows(dataset, Nresults);
-
 				for (var i = 0; i < dataset.length; i++) {
 									var row = $('<tr>');
 									row.append($('<td>').text(i));
 									for (var j = 0; j < dataset[i].length; j++) {
 											row.append($('<td>').text(dataset[i][j].toFixed(3)));}
 									table.append(row);
-				}
+
+									if (limit != dataset.length && i == Math.floor(limit / 2) - 1) {
+									 var truncrow = $('<tr>');
+									 truncrow.append($('<td>')
+																	 .text('... Tabel ingekort. Klik voor meer rijen...')
+																	 .attr('colspan', dataset.length + 1)
+																	 .css({'text-align': 'left',
+																			 'cursor': 'pointer'})
+																	 .click(function() {print_table(placeholder, dataset, varnames, limit * 5);}));
+									 table.append(truncrow);
+									 i = dataset.length - 1 - Math.ceil(limit / 2);}
+								}
+
 				$(placeholder).html(table);
 			}
 
+//
+// Helpers
+//
 			function reduce_rows(rows, Nresults) {
 					// reduce resultsObject (large array) to length == Nresults
 
@@ -292,6 +303,36 @@
 			}
 	});
 
+//
+// Lees/Kies model
+//
+function Initialize_model(data) {
+		model = new evaluator_js.Model();
+		model.parseBogusXMLString(data);
+		$("#modelregels").val(model.modelregels);
+		$("#startwaarden").val(model.startwaarden);
+		$('#y_var').empty();
+		$('#x_var').empty();
+		$('<option/>').val('').text('auto').appendTo('#x_var');
+		$('<option/>').val('').text('auto').appendTo('#y_var');
+		$("#graph").html("Model geladen. Geen data. Druk op Run!");
+		$("#output").empty();
+		$("#status").html("Status: Model geladen.");
+		previous_plot = [];
+}
+
+document.getElementById('fileinput').addEventListener('change', readFile, false);
+function readFile(evt) {
+	var f = evt.target.files[0];
+
+	if (f) {
+		var r = new FileReader();
+		r.onload = function(e) {
+		Initialize_model(e.target.result);
+	}
+		r.readAsText(f);
+	}
+}
 
 $(document).ready(function() {
 	update_model_selection();
@@ -322,16 +363,7 @@ var click_load_model = function () {
 							url : url,
 							dataType: "text",
 							success : function (data) {
-									model = new evaluator_js.Model();
-									model.parseBogusXMLString(data);
-									$("#modelregels").val(model.modelregels);
-									$("#startwaarden").val(model.startwaarden);
-									$('#y_var').empty();
-									$('#x_var').empty();
-									$('<option/>').val('').text('auto').appendTo('#x_var');
-									$('<option/>').val('').text('auto').appendTo('#y_var');
-									$("#graph").html("Model geladen. Geen data. Druk op Run!");
-									$("#output").empty();
+									Initialize_model(data);
 								}, // succes();
 								error: function (xhr, ajaxOptions, thrownError) {
 										if (xhr.status == 0) {
